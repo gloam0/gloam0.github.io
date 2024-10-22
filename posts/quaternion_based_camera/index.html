@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quaternion-Based Camera Orientation</title>
+  <link rel="stylesheet" href="/styles/tailwind.css">
+  <link rel="stylesheet" href="/assets/katex/katex.min.css">
+</head>
+<body class="flex flex-col min-h-screen bg-bodybg">
+  <header class="bg-headerbg text-headertx">
+  <div class="container mx-auto px-4 py-4">
+    <div class="flex justify-between items-end mb-8">
+      <h1 class="text-8xl font-bold mb-0 text-headertx"><a href="/">Path Tracing with CUDA</a></h1>
+      <nav class="flex items-end">
+        <a href="/" class="nav-link mr-4">Home</a>
+        <a href="https://github.com/gloam0/CUDA-Ray-Tracer" class="nav-link">GitHub</a>
+      </nav>
+    </div>
+    <div class="w-full h-px bg-separator"></div>
+  </div>
+</header>
+  <main class="flex-grow container mx-auto px-4 py-8">
+    
+<article class="prose mx-auto">
+
+  
+    <figure class="mb-8">
+      <div class="flex justify-center items-center h-auto">
+        <img src="/assets/QuaternionAxisAngleRotationDemo.gif" alt="Quaternion-Based Camera Orientation" class="w-full max-w-md h-auto rounded-lg shadow-md">
+      </div>
+    </figure>
+  
+
+  <header class="mb-8">
+    <h1 class="text-4xl font-extrabold text-posth1tx text-center mb-8">
+      Quaternion-Based Camera Orientation
+    </h1>
+  </header>
+
+  <div class="separator bg-separator mb-16"></div>
+
+  <div class="text-tx1 text-2xl text-center mb-16" style="margin-left: 4em; margin-right: 4em;">
+    A description of quaternion math for the rotation of vectors in 3D space and an example camera system using a hyrid yaw-pitch / quaternion approach.
+  </div>
+
+  <div class="separator bg-separator mb-16"></div>
+
+  <div class="content">
+    
+<div class="text-tx1 text-2xl">
+    <div class="mb-16" style="margin-left: 4em;">
+        <div class="mb-4">
+            An interactive plot in Desmos demonstrating axis-angle vector rotations using quaternions can be found <a href="https://www.desmos.com/3d/n7urt7b8wh" class="text-posth1tx"><u>here</u></a> for reference throughout this description. 
+        </div>
+    </div>
+
+    <div class="text-4xl text-posth1tx font-bold italic mb-8">
+        Quaternions
+    </div>
+
+    <div class="mb-16" style="margin-left: 4em;">
+        <div class="text-2xl text-posth1tx italic mb-8">
+            Definition
+        </div>
+
+        <div class="mb-8">
+            Quaternions are composed of a real part and three imaginary parts, and can be thought of as an extension of complex numbers. Here, $s$ is the real (scalar) part, $\vec{v} = (x, y, z)$ is the complex (vector) part, and $i, j, k$ are the fundamental quaternion imaginary units satisfying the below relationship.
+        </div>
+
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            i^2 = j^2 = k^2 = ijk = -1
+            $$
+        </div>
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q = s + xi + yj + zk = (s, \vec{v})
+            $$
+        </div>
+
+        <div class="text-2xl text-posth1tx italic mb-8">
+            Operations
+        </div>
+
+        <div class="mb-8">
+            Definitions for additional operations can be found <a href="https://en.wikipedia.org/wiki/Quaternion#:~:text=%5Ba%5D-,Definition,-%5Bedit%5D" class="text-posth1tx"><u>here</u></a>. Those provided below are the operations most relevent to the discussion following.            
+        </div>
+
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q_1 \times q_2 = (s_1s_2 - \vec{v_1} \cdot \vec{v_2}, \, s_1\vec{v_2} + s_2\vec{v_1} + \vec{v_1} \times \vec{v_2})
+            $$
+        </div>
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            ||q|| = \sqrt{s^2 + x^2 + y^2 + z^2}
+            $$
+        </div>
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q_{conjugate} = (s, -\vec{v})
+            $$
+        </div>
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q_{inverse} = \frac{q_{conjugate}}{||q||}
+            $$
+        </div>
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q_{normalized} = \frac{q}{||q||}
+            $$
+        </div>
+        <div class="mb-8">
+            Note that quaternion multiplication is non-commutative: $q_1 \times q_2 \neq q_2 \times q_1$, but is associative: $q_1 \times (q_2 \times q_3) = (q_1 \times q_2) \times q_3$. The non-commutativity of quaternions is important for their application to 3D rotations as the order of rotations matters, thus allowing for accurate representation of a <em>sequence</em> of rotations.
+        </div>
+    </div>
+
+    <div class="text-4xl text-posth1tx font-bold italic mb-8">
+        Rotating a Vector and Encoding Axis-Angle Rotations
+    </div>
+
+    <div class="mb-16" style="margin-left: 4em;">
+        <div class="mb-4">
+            Rotating a vector $\vec{v}$ using a rotation encoded in quaternion $q$ can be done by representing the vector $\vec{v}$ as a pure quaternion, computing the rotated quaternion, and extracting the vector part from the result:
+        </div>
+
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q_{\vec{v}} = (0, \vec{v})
+            $$
+        </div>
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q_{rotated} = q_{rotor} \times q_{\vec{v}} \times q_{rotor}^{-1}
+            $$
+        </div>
+
+        <div class="mb-4">
+            It's often desirable, however, to be able to express the rotation in axis-angle form, where a rotation is characterized by a unit vector representing an axis of rotation $\vec{u}$ and an angle $\theta$ in radians representing the amount of rotation about the axis of rotation.
+        </div>
+
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q_{rotor} = \left(\cos\left(\frac{\theta}{2}\right), \vec{u}\sin\left(\frac{\theta}{2}\right)\right)
+            $$
+        </div>
+    </div>
+    
+    <div class="text-4xl text-posth1tx font-bold italic mb-8">
+        Integrating Quaternion-Based Rotations in a Camera System
+    </div>
+
+    <div class="mb-16" style="margin-left: 4em;">
+        <div class="mb-8">
+            In a standard camera system where the camera's view matrix is characterized by a look-at vector, and up vector, and a right vector, quaternions can be used to both apply rotations to the camera and to track the camera's current orientation.
+        </div>
+
+        <div class="text-2xl text-posth1tx italic mb-8">
+            Initialization
+        </div>
+
+        <div class="mb-4">
+            To initialize the camera's orientation, we start with an identity quaternion (representing no rotation) and direction vectors describing the camera's forward, up, and right directions:
+        </div>
+
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q = (1, 0, 0, 0)
+            $$
+        </div>
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            \vec{c}_{forward} = (0, 0, -1)
+            $$
+        </div>
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            \vec{c}_{up} = (0, 1, 0)
+            $$
+        </div>
+        <div class="text-tx1 text-3xl mb-16">
+            $$
+            \vec{c}_{right} = (1, 0, 0)
+            $$
+        </div>
+
+        <div class="text-2xl text-posth1tx italic mb-8">
+            Using a Hybrid Euler Angle / Quaternion Approach to Create a Pitch-Yaw Camera
+        </div>
+
+        <div class="mb-4">
+            We can create a traditional yaw-pitch camera (whose 'up' vector or yaw axis is always directly vertical, and whose 'right' vector or pitch axis is rotated by the current yaw) by using a hybrid Euler Angle / Quaternion approach. To do so, based on some input like mouse movement, angles of rotation for yaw and pitch ($\theta_{yaw}$ and $\theta_{pitch}$) are computed and rotor quaternions ($q_{yaw}$ and $q_{pitch}$) are created for each, and their quaternion product is used to rotate the camera's orientation.
+        </div>
+
+        <div class="mb-4">
+            It's still important to remember that quaternion multiplication is non-commutative, and since our pitch axis needs to be rotated by the yaw amount, the product should be computed with $q_{yaw}$ as the first term (otherwise, the yaw axis would be treated as a local axis which is rotated about after the pitch rotation is applied). Conceptualizing how the order of rotor quaternion multiplication affects the order of rotations is a bit tricky - you can equally consider the first term as a rotation of the second term where the axis of rotation is a global axis, or the second term as a rotation of the first term where the axis of rotation is a local axis. Since $q_{pitch}$ is the second term in the product, no additional math is needed to determine the pitch axis - the axis of rotation for pitch in world space has already been transformed by the yaw rotation. It is simply a rotation about the camera's right vector $(1, 0, 0)$, its pitch axis (local), which has already been rotated by the yaw rotation about the up vector $(0, 1, 0)$, its yaw axis (global). Or, equally, it is a rotation about the pitch axis (global) followed by a rotation about the yaw axis (global).
+        </div>
+
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q_{yaw} = \left(\cos\left(\frac{\theta_{yaw}}{2}\right), 0, \sin\left(\frac{\theta_{yaw}}{2}\right), 0\right)
+            $$
+        </div>
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q_{pitch} = \left(\cos\left(\frac{\theta_{pitch}}{2}\right), \sin\left(\frac{\theta_{pitch}}{2}\right), 0, 0\right)
+            $$
+        </div>
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q_{rotor} = q_{yaw} \times q_{pitch} \,\, \text{, or}
+            $$
+        </div>
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q_{rotated} = q_{yaw} \times q_{pitch} \times q_{original}
+            $$
+        </div>
+
+        <div class="mb-4">
+            To use this in a camera system, a rotor quaternion representing current orientation would be stored and used to generate camera direction vectors as needed, and the rotor quaternion representing current orientation would be updated directly. For instance, to find the current forward or 'look-at' vector of the camera, we simply rotate the original forward using the rotor quaternion representing the current orientation:
+        </div>
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q_{\vec{c}_{forward}} = (0, \vec{c}_{forward})
+            $$
+        </div>
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            q_{\vec{c}_{forward}} ' = q_{orientation} \times q_{\vec{c}_{forward}} \times q_{orientation}^{-1}
+            $$
+        </div>
+
+        <div class="text-2xl text-posth1tx italic mb-8">
+            Advantages
+        </div>
+
+        <div class="mb-4">
+            An immediate benefit of such a system is the avoidance of gimbal lock that traditional Euler Angle implementations of yaw-pitch cameras struggle with. Similarly, compared to rotation matrices, quaternions only require four components which allows for simplicity and compactness (both mathematically and with respect to memory usage and computational overhead). 
+        </div>
+        <ul class="list-disc mb-16" style="margin-left: 4em;">
+            <li class="mb-4">
+                <strong>No Gimbal Lock</strong> - Compared to traditional Euler Angle implementations, this system avoids the difficulties associated with preventing or managing gimbal lock (when two of the rotational axes align and a degree of freedom is lost).
+            </li>
+            <li class="mb-4">
+                <strong>Efficient Representation</strong> - Compared to rotation matrices, quaternions only require four components which allows for simplicity and compactness (both mathematically and with respect to memory usage and computational overhead).
+            </li>
+            <li class="mb-4">
+                <strong>Numerical Stability</strong> - Implementation using Euler Angles suffer from the accumulation of error as many rotations are applied over time. In contrast, this quaternion-based approach does not accumulate error as the yaw and pitch rotations are applied relative to the original orientation, rather than the previous or most recent orientation.
+            </li>
+        </ul>
+    </div>
+
+    <div class="text-4xl text-posth1tx font-bold italic mb-8">
+        Example Implementation
+    </div>
+
+    <div class="mb-16" style="margin-left: 4em;">
+        <div class="mb-4">
+            The hybrid camera system described here is the same system I used in my current path tracer project. See <a href="https://github.com/gloam0/CUDA-Path-Tracer/blob/master/core/camera.cu" class="text-posth1tx"><u>here</u></a> for the camera code, <a href="https://github.com/gloam0/CUDA-Path-Tracer/blob/master/core/input.cu" class="text-posth1tx"><u>here</u></a> to see how the camera's <code>mouse_rotate()</code> is called by the input handler, and <a href="https://github.com/gloam0/CUDA-Path-Tracer/blob/master/utils/math_utils.cuh" class="text-posth1tx"><u>here</u></a> for the quaternion math functions. Alternatively, visit the project's GitHub using the link at the top of the page.
+        </div>
+    </div>
+</div>
+  </div>
+</article>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"
+      onload="renderMathInElement(document.body,
+          {
+              delimiters: [
+                  {left: '$$', right: '$$', display: true},
+                  {left: '\\[', right: '\\]', display: true},
+                  {left: '$', right: '$', display: false},
+                  {left: '\\(', right: '\\)', display: false}
+              ]
+          }
+      
+      );"></script>
+  </main>
+  <script data-goatcounter="https://gloam0dev.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>

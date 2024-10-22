@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+    font-family: 'Inter';
+    font-style:  normal;
+    font-weight: 900;
+    font-display: swap;
+    src: url("../assets/Inter-Black.woff2?v=3.15") format("woff2"),
+         url("../assets/Inter-Black.woff?v=3.15") format("woff");
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style:  normal;
+    font-weight: 100;
+    font-display: swap;
+    src: url("../assets/Inter-Light.woff2?v=3.15") format("woff2"),
+         url("../assets/Inter-Light.woff?v=3.15") format("woff");
+}
+
+:root {
+    --header-font: 'Inter', sans-serif;
+}
+
+@layer base {
+    h1, h2, h3 {
+        font-family: var(--header-font);
+    }
+}
+
+@layer components {
+    .btn {
+        @apply px-4 py-2 rounded font-semibold text-sm text-white;
+    }
+    .card {
+        @apply border rounded-lg overflow-hidden shadow hover:shadow-lg transition;
+    }
+    .nav-link {
+        @apply text-linktx text-3xl px-2 hover:text-linktx_hover;
+        font-family: var(--header-font);
+        font-weight: 100;
+    }
+    .separator {
+        height: 1px;
+        margin: 1rem auto;
+    }
+    li:last-of-type + .separator {
+        display: none;
+    }
+}
+  

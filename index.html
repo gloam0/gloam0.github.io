@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home</title>
+  <link rel="stylesheet" href="/styles/tailwind.css">
+  <link rel="stylesheet" href="/assets/katex/katex.min.css">
+</head>
+<body class="flex flex-col min-h-screen bg-bodybg">
+  <header class="bg-headerbg text-headertx">
+  <div class="container mx-auto px-4 py-4">
+    <div class="flex justify-between items-end mb-8">
+      <h1 class="text-8xl font-bold mb-0 text-headertx"><a href="/">Path Tracing with CUDA</a></h1>
+      <nav class="flex items-end">
+        <a href="/" class="nav-link mr-4">Home</a>
+        <a href="https://github.com/gloam0/CUDA-Ray-Tracer" class="nav-link">GitHub</a>
+      </nav>
+    </div>
+    <div class="w-full h-px bg-separator"></div>
+  </div>
+</header>
+  <main class="flex-grow container mx-auto px-4 py-8">
+    
+
+<section>
+  <ul class="space-y-6">
+    
+      
+  <li class="overflow-hidden h-48 bg-bodybg">
+    <a href="/posts/path_tracing_and/" class="block relative h-full transition-all duration-300 ease-in-out group">
+      <div class="absolute inset-0 flex transition-all duration-300 ease-in-out group-hover:bg-cardhover">
+        <div class="w-full p-4 flex flex-col justify-between transition-all duration-300 ease-in-out group-hover:w-full">
+          <h3 class="text-4xl text-summary_title_tx truncate">Understanding the Mathematical Basis for Path Tracing</h3>
+          <p class="text-2xl text-tx1 line-clamp-3 mt-auto">An explanation of the foundational mathematics which convey the broad idea of path tracing - the Rendering Equation, Monte Carlo integration with importance sampling, and the Path Sampling / Light Transport Equation.</p>
+        </div>
+        
+          <div class="hidden md:block w-1/2 relative transition-all duration-300 ease-in-out group-hover:w-0">
+            <div class="absolute inset-0 flex justify-end overflow-hidden">
+              <img src="/assets/PeakyPDF.gif" alt="Understanding the Mathematical Basis for Path Tracing" class="h-full object-cover transition-transform duration-300 ease-in-out group-hover:translate-x-full">
+            </div>
+          </div>
+        
+      </div>
+    </a>
+  </li>
+  <div class="separator bg-separator"></div>
+
+    
+      
+  <li class="overflow-hidden h-48 bg-bodybg">
+    <a href="/posts/quaternion_based_camera/" class="block relative h-full transition-all duration-300 ease-in-out group">
+      <div class="absolute inset-0 flex transition-all duration-300 ease-in-out group-hover:bg-cardhover">
+        <div class="w-full p-4 flex flex-col justify-between transition-all duration-300 ease-in-out group-hover:w-full">
+          <h3 class="text-4xl text-summary_title_tx truncate">Quaternion-Based Camera Orientation</h3>
+          <p class="text-2xl text-tx1 line-clamp-3 mt-auto">A description of quaternion math for the rotation of vectors in 3D space and an example camera system using a hyrid yaw-pitch / quaternion approach.</p>
+        </div>
+        
+          <div class="hidden md:block w-1/2 relative transition-all duration-300 ease-in-out group-hover:w-0">
+            <div class="absolute inset-0 flex justify-end overflow-hidden">
+              <img src="/assets/QuaternionAxisAngleRotationDemo.gif" alt="Quaternion-Based Camera Orientation" class="h-full object-cover transition-transform duration-300 ease-in-out group-hover:translate-x-full">
+            </div>
+          </div>
+        
+      </div>
+    </a>
+  </li>
+  <div class="separator bg-separator"></div>
+
+    
+  </ul>
+</section>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"
+      onload="renderMathInElement(document.body,
+          {
+              delimiters: [
+                  {left: '$$', right: '$$', display: true},
+                  {left: '\\[', right: '\\]', display: true},
+                  {left: '$', right: '$', display: false},
+                  {left: '\\(', right: '\\)', display: false}
+              ]
+          }
+      
+      );"></script>
+  </main>
+  <script data-goatcounter="https://gloam0dev.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>

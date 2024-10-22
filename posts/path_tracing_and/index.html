@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Understanding the Mathematical Basis for Path Tracing</title>
+  <link rel="stylesheet" href="/styles/tailwind.css">
+  <link rel="stylesheet" href="/assets/katex/katex.min.css">
+</head>
+<body class="flex flex-col min-h-screen bg-bodybg">
+  <header class="bg-headerbg text-headertx">
+  <div class="container mx-auto px-4 py-4">
+    <div class="flex justify-between items-end mb-8">
+      <h1 class="text-8xl font-bold mb-0 text-headertx"><a href="/">Path Tracing with CUDA</a></h1>
+      <nav class="flex items-end">
+        <a href="/" class="nav-link mr-4">Home</a>
+        <a href="https://github.com/gloam0/CUDA-Ray-Tracer" class="nav-link">GitHub</a>
+      </nav>
+    </div>
+    <div class="w-full h-px bg-separator"></div>
+  </div>
+</header>
+  <main class="flex-grow container mx-auto px-4 py-8">
+    
+<article class="prose mx-auto">
+
+  
+    <figure class="mb-8">
+      <div class="flex justify-center items-center h-auto">
+        <img src="/assets/PeakyPDF.gif" alt="Understanding the Mathematical Basis for Path Tracing" class="w-full max-w-md h-auto rounded-lg shadow-md">
+      </div>
+    </figure>
+  
+
+  <header class="mb-8">
+    <h1 class="text-4xl font-extrabold text-posth1tx text-center mb-8">
+      Understanding the Mathematical Basis for Path Tracing
+    </h1>
+  </header>
+
+  <div class="separator bg-separator mb-16"></div>
+
+  <div class="text-tx1 text-2xl text-center mb-16" style="margin-left: 4em; margin-right: 4em;">
+    An explanation of the foundational mathematics which convey the broad idea of path tracing - the Rendering Equation, Monte Carlo integration with importance sampling, and the Path Sampling / Light Transport Equation.
+  </div>
+
+  <div class="separator bg-separator mb-16"></div>
+
+  <div class="content">
+    
+<div class="text-tx1 text-2xl">
+    <div class="text-4xl text-posth1tx font-bold italic mb-8">
+        Introduction: Ray Tracing vs. Path Tracing
+    </div>
+
+    <div class="mb-16" style="margin-left: 4em;">
+        <div class="mb-4">
+            Ray tracing and path tracing are very similar approaches to generating realistic renders by simulating the behavior of light rays as they bounce through a scene. Path tracing may be best considered as an extension of ray tracing which enables more comprehensive rendering techniques by introducing approximative statistical methods.
+        </div>
+
+        <div class="mb-4">
+            <strong>Ray tracing</strong> simulates the paths of individual light rays as they travel from the camera, towards pixels in the viewport, and into the scene. When a ray intersects an object, the color of the associated pixel is determined based on direct lighting, reflections and refractions, usually by casting secondary rays which are limited to a maximum number of bounces. Ray tracing intentionally simplifies the rendering equation by considering only a deterministically-chosen subset of possible light paths with a restricted number of bounces.
+        </div>
+
+        <div class="mb-4">
+            <strong>Path tracing</strong> extends the ray tracing model by attempting to solve the complete rendering equation with statistical sampling. Rather than using a set of deterministically-chosen light paths with bounded lengths, many randomly-chosen light paths are cast and their results are combined to approximate the integral term of the rendering equation using Monte Carlo integration (explained in greater detail below). This process allows for accurate and physically-based simulation of indirect lighting, also known as Global Illumination - lighting which results from light bouncing off multiple surfaces in a scene, and naturally captures effects such as color bleeding, soft shadows, and ambient occlusion.
+        </div>
+
+        <div class="mb-4">
+            <strong>The primary tradeoff</strong> is computational complexity. Where ray tracing's simplified model can often product satisfactory results with a single or few samples per pixel, path tracing requires <em>many</em> samples to reach convergence in its statistical approaches which allow it to solve the full rendering equation. Despite being more computationally complex, the physically-based nature of path tracing makes it particularly attractive for scenarios where true physical accuracy is needed, such as in the creation of photorealistic renders, or in scientific computing domains such as the simulation of thermal radiation, RF signal strength, acoustics, and more.
+        </div>
+    </div>
+
+    <div class="text-4xl text-posth1tx font-bold italic mb-8">
+        The Rendering Equation
+    </div>
+
+    <div class="mb-16" style="margin-left: 4em;">
+        <div class="mb-4">
+            The Rendering Equation provides a unified mathematical framework for simulating the interaction of light as it interacts with surfaces in an environment. It states that the outgoing light at point $x$ in direction $\vec{\omega}_o$ is equal to the sum of emitted light at point $x$ in direction $\vec{\omega}_o$ and all reflected light at point $x$ in direction $\vec{\omega}_o$, where 'all reflected light' is the integration over all possible incoming light directions ($\vec{\omega}_i$) at point $x$ in the hemisphere $\Omega$ of the surface normal $n$ at point $x$.
+        </div>
+
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            \displaystyle 
+            L_o(x, \vec{\omega}_o) = 
+                L_e(x, \vec{\omega}_o) 
+                + \int_{\Omega} 
+                    f_r(x, \vec{\omega}_o, \vec{\omega}_i) 
+                    L_i(x, \vec{\omega}_i) (\vec{\omega}_i \cdot n) 
+                    d\vec{\omega}_i
+            $$
+        </div>
+
+        <ul class="list-disc mb-16" style="margin-left: 4em;">
+            <li class="mb-4">
+                $L_o(x, \vec{\omega}_o)$ - The total outgoing light at point $x$ in direction $\vec{\omega}_o$.
+            </li>
+            <li class="mb-4">
+                $L_e(x, \vec{\omega}_o)$ - The emitted light at point $x$ in direction $\vec{\omega}_o$ (i.e., the emissivity of the material).
+            </li>
+            <li class="mb-4">
+                $f_r(x, \vec{\omega}_o, \vec{\omega}_i) $ - The Bidirectional Reflectance Distribution Function (BDRF) at point $x$ from direction $\vec{\omega}_i$ (negated) with outgoing direction $\vec{\omega}_o$.
+            </li>
+            <li class="mb-4">
+                $L_i(x, \vec{\omega}_i)$ - The incoming light at point $x$ from direction $\vec{\omega}_i$.
+            </li>
+            <li class="mb-4">
+                $(\vec{\omega}_i \cdot n)$ - The cosine of the angle between the incoming direction $\vec{\omega}_i$ and the surface normal $n$, applying scaling to account for the incient angle.
+            </li>
+            <li class="mb-4">
+                $\int_{\Omega}$ - The integral over the hemisphere $\Omega$ (centered around the surface normal $n$ at point $x$) of all incoming directions $\vec{\omega}_i$ above the surface.
+            </li>
+        </ul>
+
+        <div class="text-2xl text-posth1tx italic mb-8">
+            Practical Implications
+        </div>
+
+        <ul class="list-disc mb-16" style="margin-left: 4em;">
+            <li class="mb-4">
+                <strong>Integral Term</strong> - The integral over the hemisphere $\Omega$ is inherently high-dimensional, thus analytical solutions are impractical (and extremely computationally demanding).
+            </li>
+            <li class="mb-4">
+                <strong>BRDF Complexity</strong> - The Bidirectional Reflectance Distribution Function (BRDF) $f_r(x, \vec{\omega}_o, \vec{\omega}_i)$ is material-specific and may involve a wide variety of material properties. It is the primary source of complexity in the integral term as it may vary significantly across different materials and throughout each step of a path.
+            </li>
+            <li class="mb-4">
+                <strong>Recursion</strong> - Though not explicitly conveyed in this form, most practical applications of the Rendering Equation are recursive as incoming light $L_i$ is often the result of further integrations at each 'bounce' in the chain of intersections composing a path.
+            </li>
+            <li class="mb-4">
+                <strong>Repetition</strong> - It may be obvious, but it's worth emphasizing that this equation relates the outgoing light at <em>one specific point</em>. I.e., a complete renderer may need to solve this equation millions or billions of times to construct a single frame or image ($\text{Number of Pixels} \cdot{} \text{Samples Per Pixel} \cdot{}  \text{Maximum Path Depth}$).
+            </li>
+        </ul>
+    </div>
+
+
+
+    <div class="text-4xl text-posth1tx font-bold italic mb-8">
+        Monte Carlo Integration (Importance Sampling)
+    </div>
+
+    <div class="mb-16" style="margin-left: 4em;">
+        <div class="mb-8">
+            Monte Carlo integration allows an integral to be approximated by repeated random sampling of the function being integrated. Importance sampling is a form of Monte Carlo integration that is useful when we want to generate samples in a non-uniform manner.
+        </div>
+
+        <div class="mb-8">
+            That is, sampling is focused on regions that have a higher contribution to the integrel, thus giving a lower variance in estimation and allowing for a more accurate result in fewer samples. This means that even if the samples we choose have a low probability of being sampled under a uniform distribution, we ensure their contribution is accurately represented by multiplying by the inverse of the probability of the sample being selected from our PDF.
+        </div>
+
+        <div class="mb-8">
+            The graph in the GIF at the top of this article seeks to demonstrate this. Suppose the function graphed is the one being integrated over and approximated with Monte Carlo integration. If we were to take uniform random samples, most samples would be in area with near-zero values. However, if we use a PDF whose shape matches the function graphed, the samples would be clustered around the most important regions (the peaks), and each sample would be scaled by the inverse of its probability of being drawn from the PDF to maintain unbiasedness.
+        </div>
+
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            \displaystyle \int_{\mu(x)} f(x) d\mu(x) \approx \frac{1}{N} \sum_{i=1}^{N} \frac{f(x_i)}{p(x_i)}
+            $$        
+        </div>
+
+        <ul class="list-disc mb-16" style="margin-left: 4em;">
+            <li class="mb-4">
+                $\int_{\mu(x)}$ - The integral being approximated.
+            </li>
+            <li class="mb-4">
+                $f(x)$ - The function being integrated.
+            </li>
+            <li class="mb-4">
+                $p(x)$ - The PDF used to sample $x$, scaling the result of $f(x)$ by the likelihood of achieving this example, and thus weighing the contribution of the function at $x$.
+            </li>
+            <li class="mb-4">
+                $N$ - The number of samples.
+            </li>
+            <li class="mb-4">
+                $\frac{1}{N} \sum_{i=1}^{N} \frac{f(x_i)}{p(x_i)}$ - The average of the Monte Carlo estimator $\frac{f(x)}{p(x)}$ over $N$ samples.
+            </li>
+        </ul>
+
+        <div class="text-2xl text-posth1tx italic mb-8">
+            Practical Implications
+        </div>
+
+        <ul class="list-disc mb-16" style="margin-left: 4em;">
+            <li class="mb-4">
+                <strong>Sampling Variance</strong> - Any approximative measure introduces variance into the approximations it provides. Monte Carlo integration is no different, and high variance can result in noisy renders (manifesting as graininess, speckles, or 'fireflies' in the render) or slow convergence rates. The primary reason for using importance sampling is to reduce this variance.
+            </li>
+            <li class="mb-4">
+                <strong>PDF Selection</strong> - The resulting effectiveness of applying importance sampling to Monte Carlo integration heavily relies on the appropriateness of the Probability Density Function (PDF) used for sampling. An appropriate PDF will closely match the magnitude of the integrand's distribution, thus giving the greatest likeliness for selection to samples in the greatest-magnitude regions of the integrand. Additionally, this implies that the shape of the integrand must be known prior to PDF selection. Finally, numerical stability issues should be considered given that samples with near-zero PDF values may result in a high variance of error when inversed, dependent upon precision.
+            </li>
+            <li class="mb-4">
+                <strong>Numerical Stability</strong> - Dependent on precision, samples corresponding to near-zero PDF values may result in a high variance of error when inversed. It's common to introduce an epsilon value based on the precision of the numerical type used to prune such samples.
+            </li>
+            <li class="mb-4">
+                <strong>Suitability for Parallelism</strong> - Naturally, this is a much more suitable candidate for parallelization than the raw integral term. Each sample from the PDF in the hemisphere $\Omega$ can be computed in parallel, and the recursive evaluation of a path can occur completely independently from the evaluation of other paths. On the other hand, the necessary randomness of stochastic methods such as this can lead to varying computation times for different samples which introduces significant challenges for parallelism such as load balancing, thread divergence, synchronization overhead, and even coherency of random number generation.
+            </li>
+        </ul>
+    </div>
+
+    <div class="text-4xl text-posth1tx font-bold italic mb-8">
+        Monte Carlo Approximation of the Rendering Equation
+    </div>
+
+    <div class="mb-16" style="margin-left: 4em;">
+        <div class="mb-8">
+            Monte Carlo integration with importance sampling is often used to approximate the integral term describing the total reflected light at point $x$ from all directions $\vec{\omega_i}$ in $\Omega$.
+        </div>
+
+        <div class="text-tx1 text-3xl mb-8">
+            $$
+            \displaystyle \int_{\Omega} 
+                f_r(x, \vec{\omega}_o, \vec{\omega}_i) 
+                L_i(x, \vec{\omega}_i) (\vec{\omega}_i \cdot n) d\vec{\omega}_i
+                \approx \frac{1}{N} \sum_{i=1}^{N} \frac{f_r(x, \vec{\omega}_i, \vec{\omega}_o) L_i(x, \vec{\omega}_i) (\vec{\omega}_i \cdot n)}{p(\vec{\omega}_i)}
+            $$
+
+            $$
+            \displaystyle \Rightarrow
+            L_o(x, \vec{\omega}_o) \approx 
+                L_e(x, \vec{\omega}_o) 
+                + \frac{1}{N} \sum_{i=1}^{N} \frac{f_r(x, \vec{\omega}_i, \vec{\omega}_o) L_i(x, \vec{\omega}_i) (\vec{\omega}_i \cdot n)}{p(\vec{\omega}_i)}
+            $$
+        </div>
+    </div>
+
+
+    <div class="text-4xl text-posth1tx font-bold italic mb-8">
+        Path Sampling and Light Transport
+    </div>
+
+    <div class="mb-16" style="margin-left: 4em;">
+        <div class="mb-8">
+            As a ray of light bounces from object to object in a scene, this chain of interactions is what contributes to the final pixel color. Each path is a sequence of ray-object intersections, with each bounce representing an instance of interaction with the material properties of the object it hit. Consider the path below, where $\mathbf{x}_0$ represents the camera's position (where the ray originates), and $\mathbf{x}_i$ represents the $i^{th}$ interaction with a surface.
+        </div>
+
+        <div class="text-tx1 text-4xl">
+            $$
+            \displaystyle \mathbf{x}_0 \rightarrow \mathbf{x}_1 \rightarrow \mathbf{x}_2 \rightarrow \dots \rightarrow \mathbf{x}_n
+            $$
+        </div>
+
+        <div class="mb-8">
+            Then, each segment $(\mathbf{x}_{i-1}, \mathbf{x}_i)$ corresponds to a ray cast in direction $\vec{\omega}_{i-1}$ with an outgoing direction $\vec{\omega}_i$. The <strong>throughput</strong> of such a path is the product of the attenuation of each path segment transition from $\vec{\omega}_{i-1}$ to $\vec{\omega}_i$ defined by the BRDFs of the objects intersected (thus any light 'entering' the path at intersection $\mathbf{x}_k$ is attenuated by the subpath $[\mathbf{x}_0...\mathbf{x}_k]$)
+        </div>
+        <div class="text-tx1 text-3xl">
+            $$
+            \displaystyle C(x_0 \rightarrow x_n) = \prod_{i=1}^{n}  \frac{f_r(x_{i-1}, \vec{\omega}_{i-1}, \vec{\omega}_i) \, (\mathbf{n}_{i-1} \cdot \vec{\omega}_i)}{p(\vec{\omega}_i)}
+            $$
+        </div>
+
+        <div class="text-2xl text-posth1tx italic mb-8">
+            Practical Implications
+        </div>
+
+        <ul class="list-disc mb-16" style="margin-left: 4em;">
+            <li class="mb-4">
+                <strong>Exponential Growth of Path Complexity</strong> - The throughput $C(x_0 \rightarrow x_n)$ is a product of n terms, each corresponding to a path segment. For any non-trivial scene, the number of possible paths grows exponentially as $n$ increases - at any point $x_i$ which is not an endpoint, the continuation of the path through $x_{i+1}$ may be any member of the set of non-terminating intersection points (or, thinking back to the integral term of the Rendering Equation, the infinite set of non-terminating and terminating points over all directions in $\Omega$).
+            </li>
+            <li class="mb-4">
+                <strong>Recursion</strong> - The computation of $C(x_0 \rightarrow x_n)$ is necessarily recursive, as each path segment depends on the previous. The sequential nature of this recursive dependency coupled with the often high variance in computational complexity across path segments is another challenge for parallelization.
+            </li>
+            <li class="mb-4">
+                <strong>Diminishing Throughput</strong> - As reflectance or transmittance cannot be greater than $1$, throughput diminishes with each path segment and the contribution of distant bounces becomes negligible. However, the depth at which throughput becomes sufficiently small may vary greatly between paths.
+            </li>
+        </ul>
+    </div>
+
+    <div class="text-4xl text-posth1tx font-bold italic mb-8">
+        Key Conclusions
+    </div>
+
+    <div class="mb-16" style="margin-left: 4em;">
+        <div class="mb-8">
+            <strong>The Rendering Equation provides a unified mathematical framework for simulating the interactions of light with surfaces in an environment.</strong>  Reflected light and direct emission are handled independently, where reflected light is considered from all directions in the hemisphere $\Omega$ of the normal $\vec{n}$ at intersection $x$. The $L_i$ term opens the door to recursion, as incoming reflected from direction $\omega_i$ is equivalent to evaluating $L_o$ in direction $\vec{\omega_i}$ towards the original $x$.
+        </div>
+        <div class="mb-8">
+            <strong>Solving the Rendering Equation analytically is impractical</strong> due to the high-dimensional integral over the hemisphere of incoming light directions. Thus, numerical approximations must be used to make rendering feasible.
+        </div>
+        <div class="mb-8">
+            <strong>Monte Carlo integration allows us to approximate the integral term of the Rendering Equation</strong>, especially when paired with importance sampling which allows us to focus sampling efforts on regions that contribute most significantly to the solution of the integral.
+        </div>
+        <div class="mb-8">
+            <strong>PDF selection governs the effectiveness of importance sampling</strong>, as a well-chosen PDF (which matches the shape of the integrand's distribution) reduces variance and improves convergence rates.
+        </div>
+        <div class="mb-8">
+            <strong>The evaluation of the throughput of a path is recursive.</strong> Each segment of a path relies on how the previous intersection scattered the outoing ray. This adds difficulty to parallelizing the evaluation of a single path as this is an inherently serial process, and adds complexity to parallelizing the evaluation of many paths as each path varies in computational demand and length.
+        </div>
+    </div>
+</div>
+
+  </div>
+</article>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"
+      onload="renderMathInElement(document.body,
+          {
+              delimiters: [
+                  {left: '$$', right: '$$', display: true},
+                  {left: '\\[', right: '\\]', display: true},
+                  {left: '$', right: '$', display: false},
+                  {left: '\\(', right: '\\)', display: false}
+              ]
+          }
+      
+      );"></script>
+  </main>
+  <script data-goatcounter="https://gloam0dev.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
